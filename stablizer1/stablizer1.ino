@@ -10,6 +10,7 @@
 #define servo_read 0
 #define servo_write 3
 #define cal_sig 1
+#define setpoint2angle 1.0 / 180
 
 Servo servo;
 File log_file;
@@ -18,7 +19,8 @@ int cal_val = 0;
 
 
 void makeCal(void);
-void logData(int data, sensors_event_t a);
+void logData(int setpoint, double plane_angle);
+double getPlaneAngle(void);
 
 
 void setup() {
@@ -31,7 +33,7 @@ void setup() {
 
 void loop() {
   // read input
-  int data = analogRead(servo_read);
+  int setpoint = analogRead(servo_read);
   int calibrate = digitalRead(cal_sig);
 
   if (calibrate)
@@ -40,19 +42,16 @@ void loop() {
   }
   else
   {
-    // read mpu
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
-    double angle = atan2(a.acceleration.x, a.acceleration.y);
-
     // Control block
     int roll_ctrl = 0;
+    double plane_angle = getPlaneAngle();
+    double desired_angle = setpoint * setpoint2angle;
   
     // write servo
     servo.write(roll_ctrl);
   
     // house keeping
-    logData(data, a);
+    logData(setpoint, plane_angle);
     delay(10);
   }
 }
@@ -62,26 +61,31 @@ void loop() {
 
 void makeCal(void)
 {
+  cal_val = 0;
   double temp = 0;
   int itter = 50;
   int delta = 20; // miliseconds
-  sensors_event_t a, g, temper;
   for(int i = 0; i < itter; i++)
   {
-      mpu.getEvent(&a, &g, &temper);
-      temp += atan2(a.acceleration.x, a.acceleration.y);
-      delay(delta);
+    temp += getPlaneAngle();
+    delay(delta);
   }
   cal_val = temp / itter;
 }
 
-void logData(int data, sensors_event_t a)
+void logData(int setpoint, double plane_angle)
 {
-    String data_string = String(data)+",";
-    data_string += String(a.acceleration.x)+",";
-    data_string += String(a.acceleration.y)+",";
-    data_string += String(a.acceleration.z)+",";
-    log_file = SD.open("Log.csv", FILE_WRITE);
-    log_file.println(data_string);
-    log_file.close();
+  String data_string = String(setpoint)+",";
+  data_string += String(plane_angle)+",";
+  log_file = SD.open("Log.csv", FILE_WRITE);
+  log_file.println(data_string);
+  log_file.close();
+}
+
+double getPlaneAngle(void)
+{
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+  double angle = atan2(a.acceleration.x, a.acceleration.y);
+  return angle - cal_val;
 }
