@@ -33,7 +33,7 @@ except:
 	plt.plot(roll_ctrl)
 	plt.plot(plane_angle)
 	plt.plot(other)
-	#plt.legend('set_point', 'roll_ctrl', 'plane_angle', 'other')
+	plt.legend(['set_point', 'roll_ctrl', 'plane_angle', 'other'])
 	plt.show()
 	temp = input()
 
